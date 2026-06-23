@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug(JLink)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/STM32.elf",
+            "servertype": "jlink",
+            "serverpath": "${userHome}/.eide/tools/jlink/JLinkGDBServerCL.exe",
+            "device": "STM32F405RG",
+            "interface": "swd",
+            "runToEntryPoint": "main",
+            "gdbPath": "${config:EIDE.ARM.GCC.InstallDirectory}/bin/arm-none-eabi-gdb.exe",
+            "serverArgs": [
+                "-speed",
+                "1000"
+            ],
+            "showDevDebugOutput": "raw",
+        }
+    ]
+}
