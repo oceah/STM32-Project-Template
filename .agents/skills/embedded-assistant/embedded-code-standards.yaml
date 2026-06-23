@@ -1,0 +1,146 @@
+version: 1
+name: embedded-code-standards
+description: Shared embedded C/C++ coding standards for MCU drivers, hardware abstractions, chip drivers, and firmware modules.
+
+refactoring_priorities:
+  rationale: Interfaces are the highest-priority design surface because embedded modules are often upstream dependencies for business logic.
+  order:
+    - name: interfaces
+      requirements:
+        - Improve readability, naming, responsibilities, abstraction level, const-correctness, ownership, error reporting, and brief API comments.
+        - Keep public APIs small, predictable, and hard to misuse.
+    - name: compile_errors
+      requirements:
+        - Fix type errors, missing includes, linkage issues, incompatible signatures, constexpr constraints, and platform macro problems.
+    - name: bugs
+      requirements:
+        - Fix defects such as invalid lifetime, race-prone state, unchecked buffer bounds, wrong register use, incorrect units, missing volatile or atomic semantics, and initialization order errors.
+    - name: functional_and_semantic_equivalence
+      requirements:
+        - Preserve behavior unless the user explicitly asks for a behavior change.
+        - When changing behavior is necessary to fix a bug, state it clearly.
+    - name: optimization
+      requirements:
+        - Optimize only after higher-priority items are sound.
+        - Prefer clarity and deterministic resource use over cleverness.
+
+static_memory:
+  rule: Never introduce direct or indirect dynamic memory use.
+  forbidden:
+    - new
+    - delete
+    - malloc
+    - calloc
+    - realloc
+    - free
+    - dynamic containers
+    - owning smart pointers
+    - type-erased heap-backed callbacks
+    - heap-backed strings
+    - APIs that allocate implicitly
+  replacements:
+    - Prefer intrusive nodes owned by the caller for task queues, registries, dictionaries, subscriber lists, scheduler lists, and similar container-like structures.
+    - Require the caller to guarantee intrusive node lifetime, removal rules, and concurrency discipline.
+    - Use caller-provided buffers, fixed-size arrays, spans or views, compile-time capacities, object pools with static storage, and explicit ownership only when intrusive ownership does not fit the semantics.
+    - Treat fixed-size buffers and queues as acceptable tools, but not the first-choice replacement when an intrusive design can model ownership cleanly.
+  review_rules:
+    - If existing code uses dynamic allocation, raise it as a refactoring issue and propose a static-memory replacement before editing.
+    - Do not hide allocation behind factories, lambdas, virtual construction helpers, logging utilities, or framework adapters.
+
+interfaces:
+  abstraction:
+    - Use domain-level names that express intent rather than vendor or register implementation details.
+    - Prefer abstractions such as SerialPort, DigitalOutput, AdcChannel, Timer, Clock, Storage, or Bus.
+    - Avoid exposing names such as UART_TypeDef, raw register structs, HAL handles, or chip-family details in high-level business-facing interfaces unless the layer is explicitly a low-level adapter.
+    - Prefer depending on abstract peripherals, abstract hardware, and abstract protocols instead of low-level concrete entities.
+    - Search the project for existing abstractions before creating private members or constructor parameters for vendor HAL types, raw GPIOs, raw register structs, or chip-family handles.
+    - For chip drivers, model required buses, pins, and protocols as abstract dependencies when project abstractions exist, such as SerialPort, I2cBus, SpiBus, DigitalOutput, or DigitalInput.
+  operation_names:
+    preferred:
+      - read
+      - write
+      - set
+      - get
+      - enable
+      - disable
+      - configure
+      - status
+      - flush
+    avoid:
+      - Avoid low-level transport wording such as send and receive in abstract interfaces unless the project already uses those names consistently or the protocol semantics require them.
+  comments:
+    - Add lightweight comments for classes and public interfaces. Use concise, accurate language and avoid verbose explanations.
+    - Keep code comments much shorter than interface-design discussion.
+    - Confirm units, blocking behavior, initialization prerequisites, side effects, ownership, error meanings, and thread or interrupt constraints during interface review, but do not automatically copy every detail into generated comments.
+    - Prefer expressing obvious information through names instead of comments.
+    - Write comments from the user's perspective: describe the interface purpose and only the parameters or constraints needed to use it correctly.
+    - Do not expose implementation details such as internal chunking, helper calls, register sequences, retry loops, or overflow-avoidance mechanics unless those details are part of the public contract.
+    - For simple descriptions, use single-line comments.
+    - For complex descriptions that truly need labels, use documentation comments such as "/// @brief second-level delay" and "/// @param s valid range".
+    - Do not add labels merely because the interface review discussed those details.
+    - Avoid redundant comments such as documenting a seconds parameter with "delay length (s)" when the parameter name already communicates the unit.
+    - Prefer renaming unclear parameters over adding comments.
+    - Prefer the user's native language for comments.
+    - Keep established technical terms, protocol names, register names, type names, units, and chip-specific terms in their standard form.
+    - Prefer the simplest comment form that fully explains the interface contract.
+    - Add a thread-safety comment only when an interface is confirmed thread-safe.
+    - Do not write comments stating that an interface is thread-unsafe; leave unsafe interfaces unmarked unless the user explicitly asks for warning comments.
+  naming_consistency:
+    - Preserve existing project naming conventions when they are consistent.
+    - Raise unclear or leaky names as interface issues.
+
+naming:
+  rules:
+    - Use snake_case for class public interfaces, including methods and public non-type members when they are necessary.
+    - Use UpperCamelCase for abstract peripherals, such as Timer, SerialPort, I2cBus, AdcChannel, and PwmOutput.
+    - Use all-caps letters, digits, and underscores for concrete hardware model abstractions, such as ADS1110, STM32F103_ADC1, or ICM_42688.
+    - Use all-caps letters, digits, and underscores for pin names regardless of variable naming style, such as RST, RESET, CS, DRDY, INT1, or BOOT0.
+    - Do not name pins rst, _rst, reset_pin, or similar lowercase or member-style forms.
+    - Do not introduce unscoped enum. Always use enum class to restrict scope.
+    - For naming rules not specified here, prefer common embedded C/C++ community style: snake_case functions and variables, UpperCamelCase types, UPPER_SNAKE_CASE macros, include guards, register constants, and preprocessor symbols, with clear unit suffixes where needed.
+    - Keep existing project naming only when it is consistent and does not conflict with explicit rules here.
+
+header_detail_hiding:
+  rules:
+    - Expose as few public interfaces as necessary.
+    - Present header files from the user's perspective: public responsibilities, public types, construction and configuration, lifecycle, and supported operations.
+    - Move implementation details to source files whenever possible, including helper functions, private algorithms, local constants, register manipulation details, static tables, adapter glue, and non-template internal logic.
+    - Keep implementation-only declarations out of public headers.
+    - Prefer anonymous namespaces, file-local helpers, and private translation-unit state in source files when they do not need to be visible.
+    - Avoid putting function bodies in headers unless the language or ABI requires it.
+    - For templates, constexpr, or other C++ constructs that must be visible in the header, define the public interface normally first, then place required implementation details near the end of the header.
+    - Wrap required header-visible implementation details in an obvious foldable region, such as "// region implementation details" and "// endregion implementation details".
+    - Keep required visible implementation minimal and avoid mixing it into the primary user-facing interface section.
+
+classes_and_hardware_abstractions:
+  rules:
+    - Make constructors constexpr when possible and meaningful.
+    - Keep constructors side-effect free.
+    - Constructors should bind immutable configuration such as pins, ports, channels, addresses, or handles.
+    - For peripheral or hardware abstraction wrappers, require an explicit init method.
+    - Do not initialize hardware, enable clocks, configure registers, start DMA, or touch peripherals in constructors.
+    - Make init idempotence, error reporting, and call-order expectations explicit when relevant.
+    - Separate abstract interfaces from concrete hardware adapters when that improves readability or testability.
+    - Avoid hidden global state unless already required by the platform or project architecture.
+    - When hidden global state is required, make ownership and synchronization explicit.
+
+chip_driver_minimal_system:
+  rules:
+    - Use the minimal system required for correct operation.
+    - Use as few pins and external dependencies as possible.
+    - Consult the chip manual or datasheet to determine whether optional pins are actually required.
+    - Do not require optional pins such as RST, RESET, interrupt, address-select, alert, or enable pins when the chip can operate correctly without them.
+    - If an optional pin improves reliability or feature coverage but is not required, present it as an optional interface or configuration path instead of a mandatory constructor dependency.
+    - Prefer the smallest usable dependency set, such as bus-only ADC access when reset and interrupt pins are not needed.
+
+safety_checks:
+  before_finalizing:
+    - Public call sites still compile or have a clear migration path.
+    - Interrupt, DMA, RTOS, and bare-metal contexts are not mixed unsafely.
+    - Each public interface has confirmed thread-safety expectations, including whether it is ISR-safe, task-safe, reentrant, blocking, lock-free, or externally synchronized.
+    - Blocking behavior and timeouts are explicit.
+    - Buffer sizes, alignment, volatile access, and register ordering are preserved.
+    - No direct or indirect dynamic memory allocation is introduced.
+    - Hardware initialization still happens in the required order and only through explicit initialization paths.
+    - Missing dependency semantics are either verified from project files or explicitly confirmed with the user.
+    - Code remains suitable for target constraints: memory, flash size, startup order, and available language standard.

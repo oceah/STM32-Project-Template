@@ -1,0 +1,105 @@
+version: 1
+name: stm32-debug
+description: STM32 firmware project debug scenarios for CubeMX, HAL, LL, bare-metal, flashing, clocks, GPIO, interrupts, DMA, reset, boot, and debugger issues.
+
+applicability:
+  platforms:
+    - STM32
+  project_shapes:
+    - STM32CubeMX
+    - STM32 HAL
+    - STM32 LL
+    - bare-metal STM32
+  use_when:
+    - The project uses STM32 MCU families.
+    - The user reports an STM32 firmware bug, flashing/debug connection issue, peripheral issue, interrupt issue, DMA issue, clock issue, GPIO issue, boot issue, reset issue, HardFault, timing issue, or data error.
+    - The user asks to debug or diagnose an STM32 project.
+
+debug_priorities:
+  principle: Find the likely cause first, then choose how much repair guidance to provide based on bug complexity.
+  low_cost_high_probability_checks:
+    - CubeMX configuration
+    - clocks
+    - GPIO alternate function
+    - NVIC
+    - DMA request, channel, stream, and mode
+    - linker and startup files
+    - SWD flashing and debug pins
+    - boot state
+    - reset state
+    - interrupt context
+    - DMA callbacks
+    - memory constraints
+
+diagnostic_order:
+  - Classify the failure as compile error, runtime abnormality, peripheral no response, interrupt not firing, DMA not working, flashing failure, HardFault, timing issue, or data error.
+  - Identify project shape: CubeMX, HAL, LL, bare-metal, MCU series, IDE/toolchain, startup method, debugger, and flashing tool.
+  - Check whether generated configuration matches application code usage.
+  - Check runtime chain: initialization order, callback signature, handle binding, cache coherency, interrupt priority, timeout behavior, state machine, and error codes.
+  - Check hardware and flashing chain: power, reset, boot pins, SWD pins, external crystal, flash algorithm, readout protection, and low-power configuration.
+
+cube_mx_configuration:
+  guidance:
+    - CubeMX output can legitimately differ by version. Focus on whether configuration and business code calls are consistent.
+  issues:
+    interrupt_not_triggered:
+      checks:
+        - NVIC enablement
+        - matching IRQHandler exists
+        - IRQHandler calls the matching HAL_xxx_IRQHandler(&hxxx)
+        - higher-priority interrupt is not blocking too long
+    callback_not_called:
+      checks:
+        - correct HAL API is used for callback mode
+        - polling APIs are not expected to trigger interrupt callbacks
+        - callback signature matches the HAL weak callback
+    dma_transfer_fails:
+      checks:
+        - DMA request configured
+        - DMA channel or stream configured
+        - direction is correct
+        - data width is correct
+        - address increment settings are correct
+        - mode is correct
+        - application did not call HAL_xxx_Transmit_DMA or HAL_xxx_Receive_DMA after configuring only ordinary peripheral transfer
+    peripheral_has_no_waveform:
+      checks:
+        - GPIO alternate function selection
+        - peripheral clock
+        - GPIO clock
+        - initialization order
+        - pin conflict with another peripheral
+    timer_output_or_interrupt_fails:
+      checks:
+        - HAL_TIM_Base_Start_IT is called when interrupt mode is expected
+        - HAL_TIM_PWM_Start is called when PWM output is expected
+        - ARR and PSC values
+        - channel configuration
+        - MOE for advanced timers
+
+flashing_and_debug_connection:
+  first_question: Determine whether the debug channel was disabled or reconfigured.
+  checks:
+    - SWD pins PA13/SWDIO and PA14/SWCLK may have been configured as ordinary GPIO, analog pins, or reconfigured by a low-power strategy.
+    - If SWD pins are occupied, recover through boot mode or reset-timed flashing when appropriate.
+    - Check option bytes: readout protection, nBOOT, low-power debug, independent watchdog, and reset configuration.
+    - Check power and reset: target voltage, NRST, BOOT0, shared ground with debugger, and external crystal startup.
+
+response_policy:
+  simple_case:
+    sections:
+      - Most likely cause
+      - Solution
+      - Verification
+  complex_case:
+    sections:
+      - Most likely cause
+      - Evidence
+      - Next verification
+    rule: Do not provide the full repair procedure in the first response unless the user asks to continue or explicitly confirms the diagnosis direction.
+
+edit_policy:
+  rules:
+    - Read project files for diagnosis.
+    - Do not directly modify code or configuration unless the user explicitly approves the exact change.
+    - If code or configuration must change, state exact files or settings, why the change is needed, and the risk before requesting approval.

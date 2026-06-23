@@ -1,0 +1,99 @@
+version: "4.1"
+name: STM32
+type: ARM
+deviceName: null
+packDir: null
+srcDirs:
+  - usr
+  - STM32CubeMX
+  - Middleware
+virtualFolder:
+  name: <virtual_root>
+  files: []
+  folders: []
+dependenceList: []
+outDir: build
+miscInfo:
+  uid: cba4e0c37d8e581df8257406c4c52244
+targets:
+  Debug:
+    cppPreprocessAttrs:
+      defineList:
+        - STM32F405xx
+        - STM32F103xB
+      incList:
+        - STM32CubeMX/Drivers/CMSIS/Include
+        - STM32CubeMX/Drivers/STM32F1xx_HAL_Driver/Inc
+        - STM32CubeMX/Drivers/STM32F4xx_HAL_Driver/Inc
+        - STM32CubeMX/Core/Inc
+        - STM32CubeMX/Drivers/CMSIS/Device/ST/STM32F1xx/Include
+        - STM32CubeMX/Drivers/CMSIS/Device/ST/STM32F4xx/Include
+        - usr/sys/inc
+        - usr/periph/inc
+        - usr/app/inc
+        - usr/dev/inc
+        - Middleware
+      libList: []
+    excludeList: []
+    settings:
+      debugger: cortex-debug
+    toolchain: GCC
+    toolchainConfigMap:
+      GCC:
+        archExtensions: ""
+        cpuType: Cortex-M3
+        floatingPointHardware: none
+        options:
+          version: 5
+          afterBuildTasks: []
+          asm-compiler: {}
+          beforeBuildTasks: []
+          c/cpp-compiler:
+            language-c: c23
+            language-cpp: c++23
+            one-elf-section-per-data: true
+            one-elf-section-per-function: true
+            optimization: level-size
+            turn-Warning-into-errors: true
+            warnings: all-warnings
+          global:
+            $float-abi-type: hard
+            arm-thumb-mode: thumb
+            callgraph-info: true
+            not-use-syscalls: true
+            output-debug-info: enable
+            stack-usage: true
+            use-newlib-nano: true
+          linker:
+            $outputTaskExcludes:
+              - .bin
+            $toolName: auto
+            LIB_FLAGS: -lm
+            output-format: elf
+            remove-unused-input-sections: true
+        scatterFilePath: STM32CubeMX/STM32F405XX_FLASH.ld
+        storageLayout:
+          RAM: []
+          ROM: []
+        useCustomScatterFile: true
+    uploadConfigMap:
+      JLink:
+        baseAddr: ""
+        bin: ""
+        cpuInfo:
+          cpuName: STM32F405RG
+          vendor: ST
+        otherCmds: ""
+        proType: 1
+        speed: 8000
+      STLink:
+        address: "0x08000000"
+        bin: ""
+        elFile: None
+        optionBytes: .eide/debug.st.option.bytes.ini
+        otherCmds: ""
+        proType: SWD
+        resetMode: default
+        runAfterProgram: true
+        speed: 4000
+    uploader: JLink
